@@ -1,4 +1,5 @@
-export const callout = (str: string, param?: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+const fallbackCallout = (str: string, param?: string): string => {
 	let type = 'info';
 	let title = '';
 	let foldState: string | null = null;
@@ -26,4 +27,8 @@ export const callout = (str: string, param?: string): string => {
 	if (title) calloutHeader += ` ${title}`;
 
 	return `${calloutHeader}\n${str.split('\n').map(line => `> ${line}`).join('\n')}`;
+};
+
+export const callout = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('callout', str, param, () => fallbackCallout(str, param));
 };

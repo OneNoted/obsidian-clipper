@@ -1,3 +1,4 @@
+import { applyGoFilterOrFallback } from './go-filter';
 import type { ParamValidationResult } from '../filters';
 
 export const validateCalcParams = (param: string | undefined): ParamValidationResult => {
@@ -29,7 +30,7 @@ export const validateCalcParams = (param: string | undefined): ParamValidationRe
 	return { valid: true };
 };
 
-export const calc = (str: string, param?: string): string => {
+const fallbackCalc = (str: string, param?: string): string => {
 	if (!param) {
 		return str;
 	}
@@ -84,3 +85,7 @@ export const calc = (str: string, param?: string): string => {
 		return str;
 	}
 }; 
+
+export const calc = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('calc', str, param, () => fallbackCalc(str, param));
+};

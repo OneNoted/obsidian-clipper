@@ -1,4 +1,5 @@
-export const remove_tags = (html: string, removeTags: string = ''): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+const fallbackRemoveTags = (html: string, removeTags: string = ''): string => {
 	// If no tags specified, return unchanged
 	if (!removeTags) {
 		return html;
@@ -23,3 +24,7 @@ export const remove_tags = (html: string, removeTags: string = ''): string => {
 	// Remove only the specified tags while keeping their content
 	return html.replace(regex, '');
 }; 
+
+export const remove_tags = (html: string, removeTags: string = ''): string => {
+	return applyGoFilterOrFallback('remove_tags', html, removeTags, () => fallbackRemoveTags(html, removeTags));
+};

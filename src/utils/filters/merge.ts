@@ -1,4 +1,5 @@
-export const merge = (str: string, param?: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+const fallbackMerge = (str: string, param?: string): string => {
 	// Return early if input is empty or invalid
 	if (!str || str === 'undefined' || str === 'null') {
 		return '[]';
@@ -39,3 +40,11 @@ export const merge = (str: string, param?: string): string => {
 		return JSON.stringify(array);
 	}
 }; 
+
+export const merge = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('merge', str, param, () => fallbackMerge(str, param), {
+		avoidJsonArraysWithObjects: true,
+		avoidJsonObjects: true,
+		avoidJsonScalars: true
+	});
+};

@@ -1,4 +1,5 @@
-export const blockquote = (input: string | string[]): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+const fallbackBlockquote = (input: string | string[]): string => {
 	const processBlockquote = (str: string, depth: number = 1): string => {
 		const prefix = '> '.repeat(depth);
 		return str.split('\n').map(line => `${prefix}${line}`).join('\n');
@@ -31,4 +32,9 @@ export const blockquote = (input: string | string[]): string => {
 		}
 		return processBlockquote(input as string);
 	}
+};
+
+export const blockquote = (input: string | string[]): string => {
+	if (Array.isArray(input)) return fallbackBlockquote(input);
+	return applyGoFilterOrFallback('blockquote', input as string, undefined, () => fallbackBlockquote(input as string), { avoidJsonObjects: true });
 };

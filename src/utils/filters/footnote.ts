@@ -1,4 +1,5 @@
-export const footnote = (str: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+const fallbackFootnote = (str: string): string => {
 	// Return empty string as-is without attempting to parse
 	if (str === '') {
 		return str;
@@ -20,4 +21,8 @@ export const footnote = (str: string): string => {
 		console.error('Error parsing JSON in footnote filter:', error);
 	}
 	return str;
+};
+
+export const footnote = (str: string): string => {
+	return applyGoFilterOrFallback('footnote', str, undefined, () => fallbackFootnote(str), { avoidJsonObjects: true });
 };

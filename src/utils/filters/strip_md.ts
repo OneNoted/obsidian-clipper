@@ -1,4 +1,5 @@
-export const strip_md = (str: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+const fallbackStripMd = (str: string): string => {
 		// Remove images first
 		str = str.replace(/!\[([^\]]*)\]\([^\)]+\)/g, '');
 		str = str.replace(/!\[\[([^\]]+)\]\]/g, '');
@@ -34,4 +35,8 @@ export const strip_md = (str: string): string => {
 		str = str.trim();  // Trim whitespace
 
 		return str;
+};
+
+export const strip_md = (str: string): string => {
+	return applyGoFilterOrFallback('strip_md', str, undefined, () => fallbackStripMd(str));
 };

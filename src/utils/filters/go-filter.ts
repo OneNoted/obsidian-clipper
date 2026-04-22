@@ -7,6 +7,7 @@ type Fallback<T> = () => T;
 interface GoFilterOptions {
 	avoidJsonObjects?: boolean;
 	avoidJsonArraysWithObjects?: boolean;
+	avoidJsonScalars?: boolean;
 	avoidJsonValues?: boolean;
 }
 
@@ -24,6 +25,9 @@ export function applyGoFilterOrFallback<T extends string>(
 		return fallback();
 	}
 	if (options.avoidJsonArraysWithObjects && looksLikeJsonArrayWithObjects(input)) {
+		return fallback();
+	}
+	if (options.avoidJsonScalars && looksLikeJsonScalar(input)) {
 		return fallback();
 	}
 
@@ -59,6 +63,20 @@ export function looksLikeJsonArrayWithObjects(input: string): boolean {
 	try {
 		const parsed = JSON.parse(trimmed);
 		return Array.isArray(parsed) && parsed.some(item => typeof item === 'object' && item !== null);
+	} catch {
+		return false;
+	}
+}
+
+export function looksLikeJsonScalar(input: string): boolean {
+	const trimmed = input.trim();
+	if (!trimmed || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+		return false;
+	}
+
+	try {
+		JSON.parse(trimmed);
+		return true;
 	} catch {
 		return false;
 	}
