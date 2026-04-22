@@ -62,6 +62,36 @@ func Apply(name, input, param string) (string, bool) {
 		return unique(input), true
 	case "wikilink":
 		return wikilink(input, param), true
+	case "calc":
+		return calc(input, param), true
+	case "duration":
+		return duration(input, param), true
+	case "callout":
+		return callout(input, param), true
+	case "pascal":
+		return pascal(input), true
+	case "remove_tags":
+		return removeTags(input, param), true
+	case "strip_tags":
+		return stripTags(input, param), true
+	case "strip_md", "stripmd":
+		return stripMD(input), true
+	case "nth":
+		return nth(input, param), true
+	case "merge":
+		return merge(input, param), true
+	case "footnote":
+		return footnote(input), true
+	case "blockquote":
+		return blockquote(input), true
+	case "list":
+		return listFilter(input, param), true
+	case "link":
+		return link(input, param), true
+	case "image":
+		return image(input, param), true
+	case "number_format":
+		return numberFormat(input, param), true
 	default:
 		return "", false
 	}
@@ -510,4 +540,616 @@ func wikilink(input, param string) string {
 		return "[[" + input + "|" + alias + "]]"
 	}
 	return "[[" + input + "]]"
+}
+
+func calc(input, param string) string {
+	if param == "" {
+		return input
+	}
+	num, err := strconv.ParseFloat(input, 64)
+	if err != nil || math.IsNaN(num) {
+		return input
+	}
+	operation := strings.TrimSpace(stripOuterQuotes(param))
+	operator := ""
+	valueText := ""
+	if strings.HasPrefix(operation, "**") {
+		operator = "**"
+		valueText = operation[2:]
+	} else if operation != "" {
+		operator = operation[:1]
+		valueText = operation[1:]
+	}
+	value, err := strconv.ParseFloat(valueText, 64)
+	if err != nil || math.IsNaN(value) {
+		return input
+	}
+	var result float64
+	switch operator {
+	case "+":
+		result = num + value
+	case "-":
+		result = num - value
+	case "*":
+		result = num * value
+	case "/":
+		result = num / value
+	case "^", "**":
+		result = math.Pow(num, value)
+	default:
+		return input
+	}
+	result = math.Round(result*1e10) / 1e10
+	return jsToString(result)
+}
+
+func duration(input, param string) string {
+	if input == "" {
+		return input
+	}
+	text := stripOuterQuotes(input)
+	totalSeconds := 0
+	iso := regexp.MustCompile(`^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$`)
+	matches := iso.FindStringSubmatch(text)
+	if matches == nil {
+		seconds, err := strconv.Atoi(text)
+		if err != nil {
+			return input
+		}
+		totalSeconds = seconds
+	} else {
+		multipliers := []int{365 * 24 * 3600, 30 * 24 * 3600, 24 * 3600, 3600, 60, 1}
+		for i, multiplier := range multipliers {
+			if matches[i+1] == "" {
+				continue
+			}
+			value, err := strconv.Atoi(matches[i+1])
+			if err != nil {
+				return input
+			}
+			totalSeconds += value * multiplier
+		}
+	}
+	format := param
+	if format == "" {
+		if totalSeconds >= 3600 {
+			format = "HH:mm:ss"
+		} else {
+			format = "mm:ss"
+		}
+	}
+	format = stripOuterQuotes(stripOuterParens(format))
+	hours := totalSeconds / 3600
+	minutes := (totalSeconds % 3600) / 60
+	seconds := totalSeconds % 60
+	replacements := map[string]string{
+		"HH": fmt.Sprintf("%02d", hours),
+		"H":  strconv.Itoa(hours),
+		"mm": fmt.Sprintf("%02d", minutes),
+		"m":  strconv.Itoa(minutes),
+		"ss": fmt.Sprintf("%02d", seconds),
+		"s":  strconv.Itoa(seconds),
+	}
+	return regexp.MustCompile(`HH|H|mm|m|ss|s`).ReplaceAllStringFunc(format, func(match string) string {
+		return replacements[match]
+	})
+}
+
+func callout(input, param string) string {
+	calloutType := "info"
+	title := ""
+	foldState := ""
+	if param != "" {
+		parts := splitCommaParams(stripOuterParens(param))
+		if len(parts) > 0 && parts[0] != "" {
+			calloutType = parts[0]
+		}
+		if len(parts) > 1 && parts[1] != "" {
+			title = parts[1]
+		}
+		if len(parts) > 2 {
+			switch strings.ToLower(parts[2]) {
+			case "true":
+				foldState = "-"
+			case "false":
+				foldState = "+"
+			}
+		}
+	}
+	header := "> [!" + calloutType + "]" + foldState
+	if title != "" {
+		header += " " + title
+	}
+	lines := strings.Split(input, "\n")
+	for i, line := range lines {
+		lines[i] = "> " + line
+	}
+	return header + "\n" + strings.Join(lines, "\n")
+}
+
+func pascal(input string) string {
+	var b strings.Builder
+	capitalizeNext := true
+	for _, r := range input {
+		if unicode.IsSpace(r) || r == '_' || r == '-' {
+			capitalizeNext = true
+			continue
+		}
+		if capitalizeNext {
+			b.WriteRune(unicode.ToUpper(r))
+		} else {
+			b.WriteRune(r)
+		}
+		capitalizeNext = false
+	}
+	return b.String()
+}
+
+func removeTags(input, param string) string {
+	if param == "" {
+		return input
+	}
+	tags := normalizeTagParamList(param)
+	if len(tags) == 0 {
+		return input
+	}
+	pattern := `</?(?:` + strings.Join(tags, "|") + `)\b[^>]*>`
+	re, err := regexp.Compile(`(?i)` + pattern)
+	if err != nil {
+		return input
+	}
+	return re.ReplaceAllString(input, "")
+}
+
+func stripTags(input, param string) string {
+	keepTags := normalizeTagParamList(param)
+	var result string
+	if len(keepTags) == 0 {
+		result = regexp.MustCompile(`</?[^>]+(>|$)`).ReplaceAllString(input, "")
+	} else {
+		pattern := `<(?!/?(?:` + strings.Join(keepTags, "|") + `)\b)[^>]+>`
+		re, err := regexp.Compile(`(?i)` + pattern)
+		if err != nil {
+			return input
+		}
+		result = re.ReplaceAllString(input, "")
+	}
+	entityReplacements := []struct{ old, new string }{
+		{"&nbsp;", " "}, {"&amp;", "&"}, {"&lt;", "<"}, {"&gt;", ">"}, {"&quot;", `"`}, {"&#39;", "'"},
+		{"&ldquo;", `"`}, {"&rdquo;", `"`}, {"&lsquo;", "'"}, {"&rsquo;", "'"}, {"&mdash;", "—"}, {"&ndash;", "–"}, {"&hellip;", "…"},
+	}
+	for _, replacement := range entityReplacements {
+		result = strings.ReplaceAll(result, replacement.old, replacement.new)
+	}
+	result = regexp.MustCompile(`&#(\d+);`).ReplaceAllStringFunc(result, func(match string) string {
+		parts := regexp.MustCompile(`\d+`).FindString(match)
+		code, err := strconv.Atoi(parts)
+		if err != nil {
+			return match
+		}
+		return string(rune(code))
+	})
+	result = regexp.MustCompile(`&#x([0-9A-Fa-f]+);`).ReplaceAllStringFunc(result, func(match string) string {
+		hex := regexp.MustCompile(`[0-9A-Fa-f]+`).FindString(strings.TrimPrefix(match, "&#x"))
+		code, err := strconv.ParseInt(hex, 16, 32)
+		if err != nil {
+			return match
+		}
+		return string(rune(code))
+	})
+	result = regexp.MustCompile(`\n{3,}`).ReplaceAllString(result, "\n\n")
+	return strings.TrimSpace(result)
+}
+
+func normalizeTagParamList(param string) []string {
+	param = stripOuterParens(param)
+	param = stripOuterQuotes(param)
+	param = strings.ReplaceAll(param, `\"`, `"`)
+	param = strings.ReplaceAll(param, `\'`, `'`)
+	parts := strings.Split(param, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, regexp.QuoteMeta(part))
+		}
+	}
+	return out
+}
+
+func stripMD(input string) string {
+	text := input
+	replacements := []struct{ pattern, replacement string }{
+		{`!\[([^\]]*)\]\([^\)]+\)`, ""},
+		{`!\[\[([^\]]+)\]\]`, ""},
+		{`\[([^\]]+)\]\([^\)]+\)`, `$1`},
+		{`https?://\S+`, ""},
+		{`\*\*(.*?)\*\*`, `$1`},
+		{`__(.*?)__`, `$1`},
+		{`\*(.*?)\*`, `$1`},
+		{`_(.*?)_`, `$1`},
+		{`==(.*?)==`, `$1`},
+		{`(?m)^#+\s+`, ""},
+		{"`([^`]+)`", `$1`},
+		{"(?s)```.*?```", ""},
+		{`~~(.*?)~~`, `$1`},
+		{`(?m)^[-*+] (\[[x ]\] )?`, ""},
+		{`(?m)^([-*_]){3,}\s*$`, ""},
+		{`(?m)^>\s+`, ""},
+		{`\|.*\|`, ""},
+		{`~(\w+)~`, `$1`},
+		{`\^(\w+)\^`, `$1`},
+		{`:[a-z_]+:`, ""},
+		{`<[^>]+>`, ""},
+		{`\[\s*\]`, ""},
+		{`\[\^[^\]]+\]`, ""},
+		{`(?m)^\*\[[^\]]+\]:.+$`, ""},
+		{`\[\[([^\]|]+)\|?([^\]]*)\]\]`, `${2}${1}`},
+	}
+	for _, replacement := range replacements {
+		re := regexp.MustCompile(replacement.pattern)
+		if replacement.pattern == `\[\[([^\]|]+)\|?([^\]]*)\]\]` {
+			text = re.ReplaceAllStringFunc(text, func(match string) string {
+				parts := re.FindStringSubmatch(match)
+				if len(parts) >= 3 && parts[2] != "" {
+					return parts[2]
+				}
+				if len(parts) >= 2 {
+					return parts[1]
+				}
+				return match
+			})
+			continue
+		}
+		text = re.ReplaceAllString(text, replacement.replacement)
+	}
+	text = regexp.MustCompile(`\n{3,}`).ReplaceAllString(text, "\n\n")
+	return strings.TrimSpace(text)
+}
+
+func nth(input, param string) string {
+	if input == "" || input == "undefined" || input == "null" {
+		return input
+	}
+	var data []any
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		return input
+	}
+	if param == "" {
+		return jsonString(data)
+	}
+	if strings.Contains(param, ":") {
+		pieces := strings.SplitN(param, ":", 2)
+		positions := map[int]bool{}
+		for _, raw := range strings.Split(pieces[0], ",") {
+			pos, err := strconv.Atoi(strings.TrimSpace(raw))
+			if err == nil && pos > 0 {
+				positions[pos] = true
+			}
+		}
+		basis, err := strconv.Atoi(strings.TrimSpace(pieces[1]))
+		if err != nil || basis < 1 {
+			return input
+		}
+		out := make([]any, 0, len(data))
+		for i, item := range data {
+			if positions[(i%basis)+1] {
+				out = append(out, item)
+			}
+		}
+		return jsonString(out)
+	}
+	expr := strings.TrimSpace(param)
+	out := make([]any, 0, len(data))
+	if regexp.MustCompile(`^\d+$`).MatchString(expr) {
+		position, _ := strconv.Atoi(expr)
+		for i, item := range data {
+			if i+1 == position {
+				out = append(out, item)
+			}
+		}
+		return jsonString(out)
+	}
+	if regexp.MustCompile(`^\d+n$`).MatchString(expr) {
+		multiplier, _ := strconv.Atoi(strings.TrimSuffix(expr, "n"))
+		if multiplier == 0 {
+			return input
+		}
+		for i, item := range data {
+			if (i+1)%multiplier == 0 {
+				out = append(out, item)
+			}
+		}
+		return jsonString(out)
+	}
+	if match := regexp.MustCompile(`^n\+(\d+)$`).FindStringSubmatch(expr); match != nil {
+		offset, _ := strconv.Atoi(match[1])
+		for i, item := range data {
+			if i+1 >= offset {
+				out = append(out, item)
+			}
+		}
+		return jsonString(out)
+	}
+	return input
+}
+
+func merge(input, param string) string {
+	if input == "" || input == "undefined" || input == "null" {
+		return "[]"
+	}
+	var array []any
+	if err := json.Unmarshal([]byte(input), &array); err != nil {
+		return input
+	}
+	if param == "" {
+		return jsonString(array)
+	}
+	for _, item := range splitCommaParams(stripOuterParens(param)) {
+		array = append(array, item)
+	}
+	return jsonString(array)
+}
+
+func footnote(input string) string {
+	if input == "" {
+		return input
+	}
+	var data []any
+	if err := json.Unmarshal([]byte(input), &data); err == nil {
+		lines := make([]string, len(data))
+		for i, item := range data {
+			lines[i] = fmt.Sprintf("[^%d]: %s", i+1, jsToString(item))
+		}
+		return strings.Join(lines, "\n\n")
+	}
+	return input
+}
+
+func blockquote(input string) string {
+	var data []any
+	if err := json.Unmarshal([]byte(input), &data); err == nil {
+		return blockquoteArray(data, 1)
+	}
+	var scalar any
+	if err := json.Unmarshal([]byte(input), &scalar); err == nil {
+		return blockquoteString(jsToString(scalar), 1)
+	}
+	return blockquoteString(input, 1)
+}
+
+func blockquoteArray(data []any, depth int) string {
+	lines := make([]string, 0, len(data))
+	for _, item := range data {
+		if nested, ok := item.([]any); ok {
+			lines = append(lines, blockquoteArray(nested, depth+1))
+		} else {
+			lines = append(lines, blockquoteString(jsToString(item), depth))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func blockquoteString(input string, depth int) string {
+	prefix := strings.Repeat("> ", depth)
+	lines := strings.Split(input, "\n")
+	for i, line := range lines {
+		lines[i] = prefix + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func listFilter(input, param string) string {
+	if input == "" {
+		return input
+	}
+	var parsed any
+	if err := json.Unmarshal([]byte(input), &parsed); err != nil {
+		return listItem(input, param, 0)
+	}
+	if array, ok := parsed.([]any); ok {
+		return listArray(array, param, 0)
+	}
+	return listArray([]any{parsed}, param, 0)
+}
+
+func listArray(array []any, listType string, depth int) string {
+	lines := make([]string, len(array))
+	for i, item := range array {
+		line := listItem(item, listType, depth)
+		if listType == "numbered" || listType == "numbered-task" {
+			line = regexp.MustCompile(`^\t*\d+`).ReplaceAllStringFunc(line, func(match string) string {
+				return strings.Repeat("\t", strings.Count(match, "\t")) + strconv.Itoa(i+1)
+			})
+		}
+		lines[i] = line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func listItem(item any, listType string, depth int) string {
+	if nested, ok := item.([]any); ok {
+		return listArray(nested, listType, depth+1)
+	}
+	prefix := "- "
+	switch listType {
+	case "numbered":
+		prefix = "1. "
+	case "task":
+		prefix = "- [ ] "
+	case "numbered-task":
+		prefix = "1. [ ] "
+	}
+	return strings.Repeat("\t", depth) + prefix + jsToString(item)
+}
+
+func link(input, param string) string {
+	if strings.TrimSpace(input) == "" {
+		return input
+	}
+	linkText := "link"
+	if param != "" {
+		linkText = stripOuterQuotes(stripOuterParens(param))
+	}
+	var data []any
+	if err := json.Unmarshal([]byte(input), &data); err == nil {
+		items := make([]string, len(data))
+		for i, item := range data {
+			text := jsToString(item)
+			if text == "" {
+				items[i] = ""
+			} else {
+				items[i] = "[" + linkText + "](" + encodeLinkURL(escapeMarkdown(text)) + ")"
+			}
+		}
+		return strings.Join(items, "\n")
+	}
+	return "[" + linkText + "](" + encodeLinkURL(escapeMarkdown(input)) + ")"
+}
+
+func image(input, param string) string {
+	if strings.TrimSpace(input) == "" {
+		return input
+	}
+	altText := ""
+	if param != "" {
+		altText = stripOuterQuotes(stripOuterParens(param))
+	}
+	var data []any
+	if err := json.Unmarshal([]byte(input), &data); err == nil {
+		items := make([]string, len(data))
+		for i, item := range data {
+			text := jsToString(item)
+			if text == "" {
+				items[i] = ""
+			} else {
+				items[i] = "![" + altText + "](" + escapeMarkdown(text) + ")"
+			}
+		}
+		return jsonString(items)
+	}
+	return "![" + altText + "](" + escapeMarkdown(input) + ")"
+}
+
+func numberFormat(input, param string) string {
+	decimals := 0
+	decPoint := "."
+	thousandsSep := ","
+	if param != "" {
+		parts := splitCommaParams(stripOuterParens(param))
+		if len(parts) > 0 {
+			if parsed, err := strconv.Atoi(parts[0]); err == nil {
+				decimals = parsed
+			}
+		}
+		if len(parts) > 1 {
+			decPoint = unescapeParam(parts[1])
+		}
+		if len(parts) > 2 {
+			thousandsSep = unescapeParam(parts[2])
+		}
+	}
+	var parsed any
+	if err := json.Unmarshal([]byte(input), &parsed); err != nil {
+		parsed = input
+	}
+	result := numberFormatValue(parsed, decimals, decPoint, thousandsSep)
+	if text, ok := result.(string); ok {
+		return text
+	}
+	return jsonString(result)
+}
+
+func numberFormatValue(value any, decimals int, decPoint, thousandsSep string) any {
+	switch v := value.(type) {
+	case float64:
+		return formatNumber(v, decimals, decPoint, thousandsSep)
+	case string:
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return v
+		}
+		return formatNumber(parsed, decimals, decPoint, thousandsSep)
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = numberFormatValue(item, decimals, decPoint, thousandsSep)
+		}
+		return out
+	default:
+		return v
+	}
+}
+
+func formatNumber(value float64, decimals int, decPoint, thousandsSep string) string {
+	text := strconv.FormatFloat(value, 'f', decimals, 64)
+	parts := strings.SplitN(text, ".", 2)
+	integer := parts[0]
+	sign := ""
+	if strings.HasPrefix(integer, "-") {
+		sign = "-"
+		integer = strings.TrimPrefix(integer, "-")
+	}
+	var grouped []string
+	for len(integer) > 3 {
+		grouped = append([]string{integer[len(integer)-3:]}, grouped...)
+		integer = integer[:len(integer)-3]
+	}
+	grouped = append([]string{integer}, grouped...)
+	result := sign + strings.Join(grouped, thousandsSep)
+	if len(parts) > 1 {
+		result += decPoint + parts[1]
+	}
+	return result
+}
+
+func escapeMarkdown(input string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(input, "[", `\[`), "]", `\]`)
+}
+
+func encodeLinkURL(input string) string {
+	return strings.ReplaceAll(input, " ", "%20")
+}
+
+func splitCommaParams(input string) []string {
+	parts := []string{}
+	var current strings.Builder
+	inQuote := rune(0)
+	escapeNext := false
+	for _, r := range input {
+		if escapeNext {
+			current.WriteRune(r)
+			escapeNext = false
+			continue
+		}
+		if r == '\\' {
+			current.WriteRune(r)
+			escapeNext = true
+			continue
+		}
+		if (r == '\'' || r == '"') && inQuote == 0 {
+			inQuote = r
+			current.WriteRune(r)
+			continue
+		}
+		if r == inQuote {
+			inQuote = 0
+			current.WriteRune(r)
+			continue
+		}
+		if r == ',' && inQuote == 0 {
+			parts = append(parts, strings.TrimSpace(stripOuterQuotes(current.String())))
+			current.Reset()
+			continue
+		}
+		current.WriteRune(r)
+	}
+	if current.Len() > 0 {
+		parts = append(parts, strings.TrimSpace(stripOuterQuotes(current.String())))
+	}
+	return parts
+}
+
+func unescapeParam(input string) string {
+	return regexp.MustCompile(`\\(.)`).ReplaceAllString(input, `$1`)
 }

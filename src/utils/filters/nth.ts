@@ -1,3 +1,4 @@
+import { applyGoFilterOrFallback } from './go-filter';
 import type { ParamValidationResult } from '../filters';
 
 export const validateNthParams = (param: string | undefined): ParamValidationResult => {
@@ -41,7 +42,7 @@ export const validateNthParams = (param: string | undefined): ParamValidationRes
 	return { valid: false, error: 'invalid syntax. Use number (2), multiplier (5n), offset (n+7), or basis (1,2:5)' };
 };
 
-export const nth = (str: string, params?: string): string => {
+const fallbackNth = (str: string, params?: string): string => {
 	// Handle empty or invalid input
 	if (!str || str === 'undefined' || str === 'null') {
 		return str;
@@ -108,3 +109,7 @@ export const nth = (str: string, params?: string): string => {
 		return str;
 	}
 }; 
+
+export const nth = (str: string, params?: string): string => {
+	return applyGoFilterOrFallback('nth', str, params, () => fallbackNth(str, params));
+};

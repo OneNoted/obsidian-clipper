@@ -1,4 +1,5 @@
-export const number_format = (input: string, param?: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+const fallbackNumberFormat = (input: string, param?: string): string => {
 	const formatNumber = (num: number, decimals: number, decPoint: string, thousandsSep: string): string => {
 		const parts = num.toFixed(decimals).split('.');
 		parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
@@ -84,4 +85,8 @@ export const number_format = (input: string, param?: string): string => {
 		console.error('Error in number_format filter:', error);
 		return input; // Return original input if any unexpected error occurs
 	}
+};
+
+export const number_format = (input: string, param?: string): string => {
+	return applyGoFilterOrFallback('number_format', input, param, () => fallbackNumberFormat(input, param), { avoidJsonObjects: true, avoidJsonArraysWithObjects: true });
 };

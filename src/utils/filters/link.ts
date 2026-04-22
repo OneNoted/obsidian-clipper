@@ -1,6 +1,7 @@
+import { applyGoFilterOrFallback } from './go-filter';
 import { escapeMarkdown } from '../string-utils';
 
-export const link = (str: string, param?: string): string => {
+const fallbackLink = (str: string, param?: string): string => {
 	if (!str.trim()) {
 		return str;
 	}
@@ -46,4 +47,8 @@ export const link = (str: string, param?: string): string => {
 	}
 
 	return str;
+};
+
+export const link = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('link', str, param, () => fallbackLink(str, param), { avoidJsonObjects: true, avoidJsonArraysWithObjects: true });
 };

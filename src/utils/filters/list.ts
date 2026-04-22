@@ -1,3 +1,4 @@
+import { applyGoFilterOrFallback } from './go-filter';
 import type { ParamValidationResult } from '../filters';
 
 type ListType = 'bullet' | 'numbered' | 'task' | 'numbered-task';
@@ -20,7 +21,7 @@ export const validateListParams = (param: string | undefined): ParamValidationRe
 	return { valid: true };
 };
 
-export const list = (input: string | any[], param?: string): string => {
+const fallbackList = (input: string | any[], param?: string): string => {
 	// Return empty string as-is without attempting to parse
 	if (input === '') {
 		return input;
@@ -86,4 +87,9 @@ export const list = (input: string | any[], param?: string): string => {
 		// If parsing fails, treat it as a single string
 		return processListItem(input, determineListType(param));
 	}
+};
+
+export const list = (input: string | any[], param?: string): string => {
+	if (Array.isArray(input)) return fallbackList(input, param);
+	return applyGoFilterOrFallback('list', input as string, param, () => fallbackList(input as string, param));
 };

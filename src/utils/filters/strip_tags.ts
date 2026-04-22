@@ -1,4 +1,5 @@
-export const strip_tags = (html: string, keepTags: string = ''): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+const fallbackStripTags = (html: string, keepTags: string = ''): string => {
 	// Remove outer parentheses if present
 	keepTags = keepTags.replace(/^\((.*)\)$/, '$1');
 	
@@ -41,4 +42,8 @@ export const strip_tags = (html: string, keepTags: string = ''): string => {
 
 	// Trim leading and trailing whitespace
 	return result.trim();
+};
+
+export const strip_tags = (html: string, keepTags: string = ''): string => {
+	return applyGoFilterOrFallback('strip_tags', html, keepTags, () => fallbackStripTags(html, keepTags));
 };

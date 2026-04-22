@@ -1,10 +1,11 @@
+import { applyGoFilterOrFallback } from './go-filter';
 import dayjs from 'dayjs';
 import durationPlugin from 'dayjs/plugin/duration';
 import { Duration } from 'dayjs/plugin/duration';
 
 dayjs.extend(durationPlugin);
 
-export const duration = (str: string, param?: string): string => {
+const fallbackDuration = (str: string, param?: string): string => {
 	if (!str) {
 		return str;
 	}
@@ -78,3 +79,7 @@ function formatDuration(dur: Duration, format?: string): string {
 function padZero(num: number): string {
 	return num.toString().padStart(2, '0');
 }
+
+export const duration = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('duration', str, param, () => fallbackDuration(str, param));
+};
