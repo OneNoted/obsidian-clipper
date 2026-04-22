@@ -1,3 +1,5 @@
+import { applyGoFilterOrFallback } from './go-filter';
+
 export const trim = (str: string): string => {
-	return str.trim();
+	return applyGoFilterOrFallback('trim', str, undefined, () => str.trim());
 };

@@ -1,4 +1,5 @@
 import type { ParamValidationResult } from '../filters';
+import { applyGoFilterOrFallback } from './go-filter';
 
 const validOsParams = ['windows', 'mac', 'linux'];
 
@@ -18,7 +19,7 @@ export const validateSafeNameParams = (param: string | undefined): ParamValidati
 	return { valid: true };
 };
 
-export const safe_name = (str: string, param?: string): string => {
+const fallbackSafeName = (str: string, param?: string): string => {
 	const os = param ? param.toLowerCase().trim() : 'default';
 
 	let sanitized = str;
@@ -64,4 +65,8 @@ export const safe_name = (str: string, param?: string): string => {
 	}
 
 	return sanitized;
+};
+
+export const safe_name = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('safe_name', str, param, () => fallbackSafeName(str, param));
 };

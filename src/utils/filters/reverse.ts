@@ -1,4 +1,6 @@
-export const reverse = (str: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+
+const fallbackReverse = (str: string): string => {
 	// Return early if input is empty or invalid
 	if (!str || str === 'undefined' || str === 'null') {
 		return '';
@@ -22,4 +24,8 @@ export const reverse = (str: string): string => {
 	}
 
 	return str;
-}; 
+};
+
+export const reverse = (str: string): string => {
+	return applyGoFilterOrFallback('reverse', str, undefined, () => fallbackReverse(str), { avoidJsonObjects: true });
+};

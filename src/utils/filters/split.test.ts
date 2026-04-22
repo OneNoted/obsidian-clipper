@@ -34,6 +34,12 @@ describe('split filter', () => {
 		expect(parsed).toEqual(['a', 'b', 'c', '']);
 	});
 
+	test('supports JavaScript-only regex syntax through TypeScript fallback', () => {
+		const result = split('a1b2', '\\d(?=b)');
+		const parsed = JSON.parse(result);
+		expect(parsed).toEqual(['a', 'b2']);
+	});
+
 	test('handles no matches', () => {
 		const result = split('hello', ',');
 		const parsed = JSON.parse(result);
@@ -57,4 +63,3 @@ describe('split filter via renderer', () => {
 		expect(result.output).toContain('def');
 	});
 });
-

@@ -1,4 +1,6 @@
-export const unique = (input: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+
+const fallbackUnique = (input: string): string => {
 	try {
 		const parsed = JSON.parse(input);
 
@@ -44,4 +46,11 @@ export const unique = (input: string): string => {
 		// If parsing fails, return unchanged
 		return input;
 	}
-}; 
+};
+
+export const unique = (input: string): string => {
+	return applyGoFilterOrFallback('unique', input, undefined, () => fallbackUnique(input), {
+		avoidJsonObjects: true,
+		avoidJsonArraysWithObjects: true
+	});
+};

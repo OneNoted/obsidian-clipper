@@ -1,4 +1,5 @@
 import type { ParamValidationResult } from '../filters';
+import { applyGoFilterOrFallback } from './go-filter';
 
 export const validateSliceParams = (param: string | undefined): ParamValidationResult => {
 	if (!param) {
@@ -19,7 +20,7 @@ export const validateSliceParams = (param: string | undefined): ParamValidationR
 	return { valid: true };
 };
 
-export const slice = (str: string, param?: string): string => {
+const fallbackSlice = (str: string, param?: string): string => {
 	if (!param) {
 		console.error('Slice filter requires parameters');
 		return str;
@@ -57,4 +58,8 @@ export const slice = (str: string, param?: string): string => {
 		const slicedString = str.slice(start, end);
 		return slicedString;
 	}
+};
+
+export const slice = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('slice', str, param, () => fallbackSlice(str, param));
 };

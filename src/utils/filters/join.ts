@@ -1,4 +1,6 @@
-export const join = (str: string, param?: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+
+const fallbackJoin = (str: string, param?: string): string => {
 	// Return early if input is empty or invalid
 	if (!str || str === 'undefined' || str === 'null') {
 		return '';
@@ -25,4 +27,8 @@ export const join = (str: string, param?: string): string => {
 	}
 
 	return array.join(separator);
+};
+
+export const join = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('join', str, param, () => fallbackJoin(str, param));
 };

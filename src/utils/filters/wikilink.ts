@@ -1,4 +1,6 @@
-export const wikilink = (str: string, param?: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+
+const fallbackWikilink = (str: string, param?: string): string => {
 	if (!str.trim()) {
 		return str;
 	}
@@ -39,4 +41,11 @@ export const wikilink = (str: string, param?: string): string => {
 		return alias ? `[[${str}|${alias}]]` : `[[${str}]]`;
 	}
 	return str;
+};
+
+export const wikilink = (str: string, param?: string): string => {
+	return applyGoFilterOrFallback('wikilink', str, param, () => fallbackWikilink(str, param), {
+		avoidJsonObjects: true,
+		avoidJsonArraysWithObjects: true
+	});
 };

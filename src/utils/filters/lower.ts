@@ -1,3 +1,5 @@
+import { applyGoFilterOrFallback } from './go-filter';
+
 export const lower = (input: string | string[]): string | string[] => {
 	const toLowerCase = (str: string): string => {
 		return str.toLocaleLowerCase();
@@ -5,7 +7,7 @@ export const lower = (input: string | string[]): string | string[] => {
 
 	if (Array.isArray(input)) {
 		return input.map(toLowerCase);
-	} else {
-		return toLowerCase(input);
 	}
+
+	return applyGoFilterOrFallback('lower', input, undefined, () => toLowerCase(input));
 };

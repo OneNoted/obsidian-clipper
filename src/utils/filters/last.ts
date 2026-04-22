@@ -1,4 +1,6 @@
-export const last = (str: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+
+const fallbackLast = (str: string): string => {
 	// Return empty string as-is without attempting to parse
 	if (str === '') {
 		return str;
@@ -13,4 +15,8 @@ export const last = (str: string): string => {
 		console.error('Error parsing JSON in last filter:', error);
 	}
 	return str;
+};
+
+export const last = (str: string): string => {
+	return applyGoFilterOrFallback('last', str, undefined, () => fallbackLast(str));
 };

@@ -1,4 +1,5 @@
 import type { ParamValidationResult } from '../filters';
+import { applyGoFilterOrFallback } from './go-filter';
 
 export const validateRoundParams = (param: string | undefined): ParamValidationResult => {
 	// Param is optional - no param means round to integer
@@ -18,7 +19,7 @@ export const validateRoundParams = (param: string | undefined): ParamValidationR
 	return { valid: true };
 };
 
-export const round = (input: string, param?: string): string => {
+const fallbackRound = (input: string, param?: string): string => {
 	const roundNumber = (num: number, decimalPlaces?: number): number => {
 		if (decimalPlaces === undefined) {
 			return Math.round(num);
@@ -65,4 +66,11 @@ export const round = (input: string, param?: string): string => {
 		console.error('Error in round filter:', error);
 		return input; // Return original input if any unexpected error occurs
 	}
+};
+
+export const round = (input: string, param?: string): string => {
+	return applyGoFilterOrFallback('round', input, param, () => fallbackRound(input, param), {
+		avoidJsonObjects: true,
+		avoidJsonArraysWithObjects: true
+	});
 };

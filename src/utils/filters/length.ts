@@ -1,4 +1,6 @@
-export const length = (str: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+
+const fallbackLength = (str: string): string => {
 	try {
 		// Try to parse as JSON first
 		const parsed = JSON.parse(str);
@@ -17,4 +19,8 @@ export const length = (str: string): string => {
 		// If parsing fails, treat as a string and return its length
 		return str.length.toString();
 	}
-}; 
+};
+
+export const length = (str: string): string => {
+	return applyGoFilterOrFallback('length', str, undefined, () => fallbackLength(str));
+};

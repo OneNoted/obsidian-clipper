@@ -1,8 +1,10 @@
+import { applyGoFilterOrFallback } from './go-filter';
+
 // TODO: Consider implementing multi-language support for title casing
 // Current implementation is English-specific
 const lowercaseWords = ['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'from', 'by', 'in', 'of'];
 
-export const title = (input: string | string[], param?: string): string | string[] => {
+const fallbackTitle = (input: string | string[], param?: string): string | string[] => {
 	const toTitleCase = (str: string): string => {
 		return str.split(/\s+/).map((word, index) => {
 			if (index !== 0 && lowercaseWords.includes(word.toLowerCase())) {
@@ -35,4 +37,12 @@ export const title = (input: string | string[], param?: string): string | string
 		// If parsing fails, treat it as a single string or array of strings
 		return processValue(input);
 	}
+};
+
+export const title = (input: string | string[], param?: string): string | string[] => {
+	if (Array.isArray(input)) {
+		return fallbackTitle(input, param);
+	}
+
+	return applyGoFilterOrFallback('title', input, param, () => fallbackTitle(input, param) as string, { avoidJsonValues: true });
 };

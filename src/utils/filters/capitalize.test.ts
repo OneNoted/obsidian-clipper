@@ -25,5 +25,8 @@ describe('capitalize filter', () => {
 	test('handles single character', () => {
 		expect(capitalize('h')).toBe('H');
 	});
-});
 
+	test('preserves JSON scalar behavior', () => {
+		expect(capitalize('"hello"')).toBe('"Hello"');
+	});
+});

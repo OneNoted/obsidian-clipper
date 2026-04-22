@@ -1,3 +1,5 @@
+import { applyGoFilterOrFallback } from './go-filter';
+
 export const upper = (input: string | string[]): string | string[] => {
 	const toUpperCase = (str: string): string => {
 		return str.toLocaleUpperCase();
@@ -5,7 +7,7 @@ export const upper = (input: string | string[]): string | string[] => {
 
 	if (Array.isArray(input)) {
 		return input.map(toUpperCase);
-	} else {
-		return toUpperCase(input);
 	}
+
+	return applyGoFilterOrFallback('upper', input, undefined, () => toUpperCase(input));
 };

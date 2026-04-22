@@ -1,4 +1,6 @@
-export const capitalize = (input: string): string => {
+import { applyGoFilterOrFallback } from './go-filter';
+
+const fallbackCapitalize = (input: string): string => {
 	const capitalizeString = (str: string): string => 
 		str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
@@ -25,4 +27,8 @@ export const capitalize = (input: string): string => {
 		// If parsing fails, treat the input as a simple string
 		return capitalizeString(input);
 	}
+};
+
+export const capitalize = (input: string): string => {
+	return applyGoFilterOrFallback('capitalize', input, undefined, () => fallbackCapitalize(input), { avoidJsonValues: true });
 };

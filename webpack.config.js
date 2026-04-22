@@ -5,7 +5,27 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const ZipPlugin = require('zip-webpack-plugin');
 const package = require('./package.json');
 const webpack = require('webpack');
+const { spawnSync } = require('child_process');
 const TerserPlugin = require('terser-webpack-plugin');
+
+
+class BuildGoWasmPlugin {
+	apply(compiler) {
+		const build = () => {
+			const result = spawnSync(process.execPath, ['scripts/build-go-wasm.mjs'], {
+				cwd: __dirname,
+				stdio: 'inherit',
+				env: process.env
+			});
+
+			if (result.status !== 0) {
+				throw new Error('Go WebAssembly build failed');
+			}
+		};
+
+		compiler.hooks.beforeRun.tap('BuildGoWasmPlugin', build);
+	}
+}
 
 // Remove .DS_Store files
 function removeDSStore(dir) {
@@ -136,6 +156,7 @@ module.exports = (env, argv) => {
 			]
 		},
 		plugins: [
+			new BuildGoWasmPlugin(),
 			new CopyPlugin({
 				patterns: [
 					{ 
@@ -151,6 +172,7 @@ module.exports = (env, argv) => {
 					{ from: "src/icons", to: "icons" },
 					{ from: "node_modules/webextension-polyfill/dist/browser-polyfill.min.js", to: "browser-polyfill.min.js" },
 					{ from: "src/flatten-shadow-dom.js", to: "flatten-shadow-dom.js" },
+					{ from: "src/go-wasm", to: "go-wasm", noErrorOnMissing: true },
 					{
 						from: 'src/_locales',
 						to: '_locales'
