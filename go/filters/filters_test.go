@@ -46,6 +46,7 @@ func TestApplyStringFilters(t *testing.T) {
 		{"footnote", `["first","second"]`, "", "[^1]: first\n\n[^2]: second"},
 		{"blockquote", "line1\nline2", "", "> line1\n> line2"},
 		{"list", `["a","b"]`, "numbered-task", "1. [ ] a\n2. [ ] b"},
+		{"list", `["a",["b","c"],"d"]`, "numbered-task", "1. [ ] a\n\t1. [ ] b\n\t1. [ ] c\n3. [ ] d"},
 		{"link", `["url1","url2"]`, "Link", "[Link](url1)\n[Link](url2)"},
 		{"number_format", "1234567.89", "2", "1,234,567.89"},
 	}

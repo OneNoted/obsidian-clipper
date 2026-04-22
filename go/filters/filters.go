@@ -88,8 +88,6 @@ func Apply(name, input, param string) (string, bool) {
 		return listFilter(input, param), true
 	case "link":
 		return link(input, param), true
-	case "image":
-		return image(input, param), true
 	case "number_format":
 		return numberFormat(input, param), true
 	default:
@@ -957,9 +955,10 @@ func listArray(array []any, listType string, depth int) string {
 	lines := make([]string, len(array))
 	for i, item := range array {
 		line := listItem(item, listType, depth)
-		if listType == "numbered" || listType == "numbered-task" {
-			line = regexp.MustCompile(`^\t*\d+`).ReplaceAllStringFunc(line, func(match string) string {
-				return strings.Repeat("\t", strings.Count(match, "\t")) + strconv.Itoa(i+1)
+		_, nested := item.([]any)
+		if !nested && (listType == "numbered" || listType == "numbered-task") {
+			line = regexp.MustCompile(`^\d+`).ReplaceAllStringFunc(line, func(match string) string {
+				return strconv.Itoa(i + 1)
 			})
 		}
 		lines[i] = line
@@ -1005,30 +1004,6 @@ func link(input, param string) string {
 		return strings.Join(items, "\n")
 	}
 	return "[" + linkText + "](" + encodeLinkURL(escapeMarkdown(input)) + ")"
-}
-
-func image(input, param string) string {
-	if strings.TrimSpace(input) == "" {
-		return input
-	}
-	altText := ""
-	if param != "" {
-		altText = stripOuterQuotes(stripOuterParens(param))
-	}
-	var data []any
-	if err := json.Unmarshal([]byte(input), &data); err == nil {
-		items := make([]string, len(data))
-		for i, item := range data {
-			text := jsToString(item)
-			if text == "" {
-				items[i] = ""
-			} else {
-				items[i] = "![" + altText + "](" + escapeMarkdown(text) + ")"
-			}
-		}
-		return jsonString(items)
-	}
-	return "![" + altText + "](" + escapeMarkdown(input) + ")"
 }
 
 func numberFormat(input, param string) string {

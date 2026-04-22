@@ -42,5 +42,9 @@ const fallbackMerge = (str: string, param?: string): string => {
 }; 
 
 export const merge = (str: string, param?: string): string => {
-	return applyGoFilterOrFallback('merge', str, param, () => fallbackMerge(str, param), { avoidJsonScalars: true });
+	return applyGoFilterOrFallback('merge', str, param, () => fallbackMerge(str, param), {
+		avoidJsonArraysWithObjects: true,
+		avoidJsonObjects: true,
+		avoidJsonScalars: true
+	});
 };

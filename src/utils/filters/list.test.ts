@@ -37,6 +37,11 @@ describe('list filter', () => {
 		expect(result).toBe('- only');
 	});
 
+	test('preserves nested numbering independently', () => {
+		const result = list('["a",["b","c"],"d"]', 'numbered-task');
+		expect(result).toBe('1. [ ] a\n\t1. [ ] b\n\t1. [ ] c\n3. [ ] d');
+	});
+
 	test('returns original for non-JSON with bullet prefix', () => {
 		// Non-JSON input is treated as a single item and formatted as a list item
 		expect(list('plain text')).toBe('- plain text');
@@ -60,4 +65,3 @@ describe('list param validation', () => {
 		expect(result.error).toContain('invalid list type');
 	});
 });
-

@@ -22,6 +22,17 @@ describe('merge filter', () => {
 		expect(parsed).toEqual(['"a"', 'b', 'c']);
 	});
 
+	test('creates array from object input', () => {
+		const result = merge('{"a":1}', '"b"');
+		const parsed = JSON.parse(result);
+		expect(parsed).toEqual(['{"a":1}', 'b']);
+	});
+
+	test('preserves object key order in array input', () => {
+		const result = merge('[{"b":2,"a":1}]', '"x"');
+		expect(result).toBe('[{"b":2,"a":1},"x"]');
+	});
+
 	test('handles empty array', () => {
 		const result = merge('[]', '"a"');
 		const parsed = JSON.parse(result);
