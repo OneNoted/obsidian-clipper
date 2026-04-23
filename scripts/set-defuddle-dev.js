@@ -5,6 +5,11 @@ const path = require('path');
 const packageJsonPath = path.join(__dirname, '..', 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 
+packageJson.config = packageJson.config || {};
+if (!packageJson.dependencies.defuddle.startsWith('file:')) {
+	packageJson.config.defuddleProdDependency = packageJson.dependencies.defuddle;
+}
+
 // Update the defuddle dependency to use local version
 packageJson.dependencies.defuddle = 'file:../defuddle';
 
@@ -18,4 +23,4 @@ try {
 } catch (error) {
 	console.error('Failed to install dependencies:', error);
 	process.exit(1);
-} 
+}
