@@ -13,9 +13,22 @@ import { createAsyncResolver, createSelectorProcessor } from '../api';
 // ---------------------------------------------------------------------------
 
 const FROZEN_DATE = new Date('2025-01-15T12:00:00Z');
+const FIXTURE_TIMEZONE = 'America/Los_Angeles';
+const originalTimezone = process.env.TZ;
 
-beforeAll(() => { vi.useFakeTimers({ now: FROZEN_DATE }); });
-afterAll(() => { vi.useRealTimers(); });
+beforeAll(() => {
+	process.env.TZ = FIXTURE_TIMEZONE;
+	vi.useFakeTimers({ now: FROZEN_DATE });
+});
+
+afterAll(() => {
+	vi.useRealTimers();
+	if (originalTimezone === undefined) {
+		delete process.env.TZ;
+	} else {
+		process.env.TZ = originalTimezone;
+	}
+});
 
 // ---------------------------------------------------------------------------
 // Fixture types
@@ -33,7 +46,9 @@ async function runFixture(html: string, url: string, template: FixtureTemplate):
 	// Run defuddle — same as CLI
 	const defuddle = new DefuddleClass(document as unknown as Document, { url });
 	const defuddleResult = defuddle.parse();
-	const markdownContent = createMarkdownContent(defuddleResult.content, url);
+	const markdownContent = withMarkdownDocument(() =>
+		createMarkdownContent(defuddleResult.content, url)
+	);
 
 	// Build variables from defuddle output — same as CLI
 	const variables = buildVariables({
@@ -82,6 +97,52 @@ async function runFixture(html: string, url: string, template: FixtureTemplate):
 	const compiledContent = await compileFn(template.noteContentFormat);
 
 	return frontmatter ? frontmatter + compiledContent : compiledContent;
+}
+
+
+function createMarkdownDocument(): Document {
+	let current = parseHTML('<!doctype html><html><head></head><body></body></html>').document;
+	const shell = current as Document;
+
+	(shell as any).open = () => shell;
+	(shell as any).write = (html: string) => {
+		current = parseHTML(html).document;
+	};
+	(shell as any).close = () => {};
+
+	return new Proxy(shell, {
+		get(target, property, receiver) {
+			if (property in current) {
+				return Reflect.get(current, property, receiver);
+			}
+			return Reflect.get(target, property, receiver);
+		},
+		set(target, property, value, receiver) {
+			if (property in current) {
+				return Reflect.set(current, property, value, receiver);
+			}
+			return Reflect.set(target, property, value, receiver);
+		}
+	}) as Document;
+}
+
+function withMarkdownDocument<T>(callback: () => T): T {
+	const previousDocument = globalThis.document;
+	const markdownDocument = parseHTML('<!doctype html><html><head></head><body></body></html>').document as Document;
+	(markdownDocument as any).implementation = {
+		createHTMLDocument: createMarkdownDocument
+	};
+
+	try {
+		(globalThis as typeof globalThis & { document: Document }).document = markdownDocument;
+		return callback();
+	} finally {
+		if (previousDocument === undefined) {
+			delete (globalThis as any).document;
+		} else {
+			(globalThis as typeof globalThis & { document: Document }).document = previousDocument;
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
